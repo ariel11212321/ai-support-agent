@@ -7,5 +7,9 @@ langgraph>=0.5.4
 # Rich for beautiful CLI interface (easy to explain)
 rich>=13.0.0
 
+# Transformers for zero-shot classification via HuggingFace
+transformers>=4.38.0
+torch>=2.1.0  # Required backend for transformers
+
 # Optional: Performance monitoring (can be excluded if needed)
 psutil>=5.9.0
