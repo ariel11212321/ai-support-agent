@@ -1,0 +1,58 @@
+{
+  "cache_entries": {
+    "3e5073047bb694e155d03d6b60b83f1c4e6c43ed4e4a7967a5ad4cc92c4b53b2": {
+      "question_text": "hi whats up?",
+      "response": {
+        "category": "general",
+        "response": "Let me provide you with the information you're looking for. I notice you're interested in whats. Let me make sure you get the most relevant information.",
+        "suggested_actions": [
+          "Browse our help center",
+          "Contact our support team",
+          "Check our community forum",
+          "Visit our website for more information"
+        ],
+        "escalation_needed": false,
+        "priority": "low",
+        "confidence": 0.85,
+        "processing_time_ms": 0.12119999155402184,
+        "timestamp": "2025-07-23 21:17:56.612365"
+      },
+      "hit_count": 0,
+      "created_at": "2025-07-23T21:17:56.719230",
+      "last_accessed": "2025-07-23T21:17:56.719236"
+    },
+    "9a23ebd56291165dc1c4e3d2e846eb31ea222603785a5320a47b420672215ae2": {
+      "question_text": "i have a critical bug",
+      "response": {
+        "category": "technical",
+        "response": "I'm here to help resolve your technical issue. Let's start with some basic troubleshooting. Given the critical nature of this issue, I'm flagging this for immediate escalation to our infrastructure team.",
+        "suggested_actions": [
+          "🚨 Contact on-call engineer immediately: +1-800-EMERGENCY",
+          "Check system status page for known issues",
+          "Describe the exact error message",
+          "Note when the issue started",
+          "Try basic troubleshooting steps",
+          "Contact technical support with details",
+          "Set up monitoring alerts for this issue"
+        ],
+        "escalation_needed": true,
+        "priority": "urgent",
+        "confidence": 0.764814814814815,
+        "processing_time_ms": 0.1677999971434474,
+        "timestamp": "2025-07-23 21:18:13.317847"
+      },
+      "hit_count": 0,
+      "created_at": "2025-07-23T21:18:13.422465",
+      "last_accessed": "2025-07-23T21:18:13.422470"
+    }
+  },
+  "stats": {
+    "hits": 0,
+    "misses": 3,
+    "evictions": 0,
+    "ttl_expires": 0,
+    "total_requests": 3
+  },
+  "exported_at": "2025-07-23T21:19:14.252503",
+  "saved_at": "2025-07-23T21:19:14.252511"
+}
