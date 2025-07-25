@@ -1,20 +1,14 @@
 class Config:
-    # Classification Model
-    CLASSIFICATION_MODEL = "facebook/bart-large-mnli"
+    CLASSIFICATION_MODEL = "distilbert-base-uncased"  
     CLASSIFICATION_LABELS = ["billing", "technical", "general"]
     
-    # Response Generation Models
-    RESPONSE_MODEL = "microsoft/DialoGPT-medium"  # Conversational AI
-    # Alternative: "facebook/blenderbot-400M-distill" for better responses
+    CACHE_SIZE = 500  
+    MAX_WORKERS = 2   
+    TIMEOUT_SECONDS = 10  
+  
+    API_TIMEOUT = 10          
+    API_RETRY_COUNT = 2       
+  
+    GROQ_API_KEY = "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"        
     
-    # Performance
-    CACHE_SIZE = 100
-    MAX_WORKERS = 4
-    TIMEOUT_SECONDS = 30
     
-    # AI Response Prompts by Category
-    RESPONSE_PROMPTS = {
-        "billing": "You are a helpful billing support specialist. A customer asked: '{question}'. Provide a helpful, professional response about billing matters.",
-        "technical": "You are a technical support expert. A customer reported: '{question}'. Provide a helpful troubleshooting response with clear steps.",
-        "general": "You are a friendly customer service representative. A customer asked: '{question}'. Provide a helpful and informative response."
-    }

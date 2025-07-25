@@ -1,124 +1,274 @@
-"""
-AI Support Agent - Premium AI Response Generator
-Uses the smartest free models available on HuggingFace
-"""
-
 import time
+import requests
+import json
+import os
 from functools import lru_cache
-from transformers import pipeline
+from typing import Optional, Dict, Any
 from models import UserQuestion, ClassificationResult, SupportResponse
 from config import Config
 
+
 class AIResponseGenerator:
     def __init__(self):
-        print("🤖 Loading premium AI models...")
-        self.generators = {}
-        self.loaded_models = []
+        print("⚡ Initializing Groq AI response system...")
         
-        # Try the best free models in order of quality
-        models_to_try = [
-            ("mistralai/Mixtral-8x7B-Instruct-v0.1", "text-generation"),
-           ("mistralai/Mistral-7B-Instruct-v0.2",    "text-generation"),
-            ("microsoft/Phi-3-mini-128k-instruct",    "text-generation"),
-            ("google/flan-t5-base",                   "text2text-generation"),
-            ("t5-base",                               "text2text-generation"),
-            ("distilgpt2",                            "text-generation")]
+        # Groq configuration
+        self.api_key = getattr(Config, 'GROQ_API_KEY', '')
+        self.base_url = "https://api.groq.com/openai/v1/chat/completions"
+        self.model = "llama3-8b-8192"  # Fast and free model
         
-        for model_name, task in models_to_try:
-            try:
-                print(f"⚡ Trying {model_name}...")
-                generator = pipeline(task, model=model_name)
-                self.generators[task] = generator
-                self.loaded_models.append(model_name)
-                print(f"✅ {model_name} loaded successfully!")
-                break  # Use the first one that works
-            except Exception as e:
-                print(f"⚠️ {model_name} failed: {str(e)[:50]}...")
-                continue
+        # Request configuration
+        self.timeout = 10
+        self.max_tokens = 150
+        self.temperature = 0.7
         
-        if not self.generators:
-            print("❌ All AI models failed - using smart templates")
-            self.generation_type = "smart-template"
+        # Test API availability
+        if self._test_groq_connection():
+            print("🚀 Groq API connection verified!")
         else:
-            self.generation_type = list(self.generators.keys())[0]
-            print(f"🚀 Using {self.loaded_models[0]} for responses!")
+            print("⚠️ Groq API not available, using fallback responses")
+            self.api_key = None
     
-    def _create_smart_prompt(self, question: str, category: str) -> str:
-            prompts = {
-                "billing": f"Customer: {question}\nBilling Support: I understand your billing concern.",
-                "technical": f"Customer: {question}\nTech Support: I can help you with this technical issue.",
-                "general": f"Customer: {question}\nSupport Agent: I'm happy to help you with that."
-            }
-            return prompts[category]
-    
-    def _generate_with_model(self, prompt: str, category: str) -> str:
-
+    def _test_groq_connection(self) -> bool:
+        """Test Groq API connectivity"""
+        if not self.api_key:
+            print("❌ No Groq API key found")
+            return False
+        
         try:
-            if self.generation_type == "conversational":
-                generator = self.generators["conversational"]
-                if "blenderbot" in self.loaded_models[0]:
-
-                    result = generator(prompt, max_length=100, do_sample=True, temperature=0.7)
-                    return result[0]['generated_text'].strip()
-                else:
-                    result = generator(prompt, max_length=100, pad_token_id=50256)
-                    return result.generated_responses[-1] if hasattr(result, 'generated_responses') else str(result)
+            response = requests.post(
+                self.base_url,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": "test"}],
+                    "max_tokens": 1
+                },
+                timeout=5
+            )
             
-            elif self.generation_type == "text2text-generation":
-                generator = self.generators["text2text-generation"]
-                result = generator(prompt, max_length=80, do_sample=True, temperature=0.7)
-                return result[0]['generated_text'].strip()
-            
-            else: 
-                generator = self.generators["text-generation"]
-                result = generator(prompt, max_length=len(prompt.split()) + 30, 
-                                 do_sample=True, temperature=0.7, pad_token_id=50256)
-                generated = result[0]['generated_text']
-               
-                response = generated.replace(prompt, "").strip()
-                return response if len(response) > 5 else self._get_fallback_response(category)
+            if response.status_code == 200:
+                print("✅ Groq API test successful")
+                return True
+            else:
+                print(f"❌ Groq API test failed: {response.status_code}")
+                return False
                 
         except Exception as e:
-            print(f"⚠️ Generation error: {e}")
-            return self._get_fallback_response(category)
+            print(f"❌ Groq API test error: {str(e)[:50]}...")
+            return False
     
-    def _get_fallback_response(self, category: str) -> str:
-        """High-quality fallback responses"""
-        responses = {
-            "billing": "I understand you have a billing question. Let me help you resolve this right away. I'll review your account and get back to you with detailed information.",
+    def _create_enhanced_prompt(self, question: str, category: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Create specialized prompts for different support categories"""
+        
+        # Extract metadata for context
+        customer_tier = "standard"
+        sentiment = "neutral"
+        priority = "medium"
+        
+        if metadata:
+            customer_tier = metadata.get("customer_tier", "standard")
+            sentiment = metadata.get("sentiment", "neutral")
+            priority = metadata.get("priority", "medium")
+        
+        # Base system prompts for each category
+        system_prompts = {
+            "billing": """You are a professional billing support specialist. You help customers with payment issues, account billing, invoices, and subscription questions. Always be empathetic, clear, and solution-focused. Provide specific next steps when possible.""",
             
-            "technical": "I see you're experiencing a technical issue. Let's work together to solve this problem. I'll guide you through the troubleshooting steps.",
+            "technical": """You are an expert technical support engineer. You help customers troubleshoot software issues, bugs, and technical problems. Provide clear, step-by-step guidance and ask relevant follow-up questions to diagnose issues effectively.""",
             
-            "general": "Thank you for reaching out! I'm here to help with your question. Let me get you the information you need right away."
+            "general": """You are a helpful customer service representative. You assist customers with general inquiries, account questions, and product information. Be friendly, informative, and always aim to fully address the customer's needs."""
         }
-        return responses.get(category, "I'm here to help you with your question!")
+        
+        # Adjust tone based on customer tier and sentiment
+        tone_adjustments = {
+            "enterprise": " Use a professional, executive-level communication style.",
+            "premium": " Provide detailed, priority service with additional context.",
+            "standard": " Maintain a friendly, helpful tone."
+        }
+        
+        sentiment_adjustments = {
+            "negative": " The customer seems frustrated, so be especially empathetic and focus on immediate resolution.",
+            "positive": " The customer has a positive attitude, maintain their satisfaction.",
+            "neutral": " Maintain a professional, helpful demeanor."
+        }
+        
+        priority_adjustments = {
+            "urgent": " This is an urgent request requiring immediate attention.",
+            "high": " This is a high-priority request.",
+            "medium": " Handle this with standard priority.",
+            "low": " This is a routine inquiry."
+        }
+        
+        # Build enhanced system prompt
+        system_prompt = system_prompts.get(category, system_prompts["general"])
+        system_prompt += tone_adjustments.get(customer_tier, tone_adjustments["standard"])
+        system_prompt += sentiment_adjustments.get(sentiment, sentiment_adjustments["neutral"])
+        system_prompt += priority_adjustments.get(priority, priority_adjustments["medium"])
+        
+        # Add specific instructions
+        system_prompt += "\n\nGuidelines:\n"
+        system_prompt += "- Keep responses concise but comprehensive (50-120 words)\n"
+        system_prompt += "- Always acknowledge the customer's concern\n"
+        system_prompt += "- Provide actionable next steps when applicable\n"
+        system_prompt += "- Use a warm, professional tone\n"
+        system_prompt += "- Avoid technical jargon unless specifically relevant\n"
+        
+        return system_prompt
     
-    @lru_cache(maxsize=Config.CACHE_SIZE)
-    def _cached_generate(self, question: str, category: str) -> str:
-        """Cached response generation with smart AI"""
+    def _call_groq_api(self, question: str, category: str, metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Make API call to Groq with enhanced prompting"""
+        if not self.api_key:
+            return ""
         
-        if self.generators:
-            prompt = self._create_smart_prompt(question, category)
-            response = self._generate_with_model(prompt, category)
+        try:
+            system_prompt = self._create_enhanced_prompt(question, category, metadata)
             
+            # Prepare the request
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": question}
+                ],
+                "max_tokens": self.max_tokens,
+                "temperature": self.temperature,
+                "top_p": 0.9,
+                "stream": False
+            }
             
-            return response
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # Make the API call
+            response = requests.post(
+                self.base_url,
+                headers=headers,
+                json=payload,
+                timeout=self.timeout
+            )
+            
+            # Handle response
+            if response.status_code == 200:
+                result = response.json()
+                content = result["choices"][0]["message"]["content"].strip()
+                
+                # Basic quality checks
+                if len(content) < 20:
+                    print("⚠️ Groq response too short, using fallback")
+                    return ""
+                
+                return content
+            
+            elif response.status_code == 429:
+                print("⚠️ Groq rate limit hit")
+                return ""
+            
+            else:
+                print(f"⚠️ Groq API error: {response.status_code} - {response.text[:100]}")
+                return ""
+                
+        except requests.exceptions.Timeout:
+            print("⚠️ Groq API timeout")
+            return ""
         
-        # If no AI models, use smart fallback
-        return self._get_fallback_response(category)
+        except Exception as e:
+            print(f"⚠️ Groq API error: {str(e)[:50]}...")
+            return ""
+    
+    def _get_fallback_response(self, category: str, question: str = "", metadata: Optional[Dict[str, Any]] = None) -> str:
+        """Enhanced fallback responses when Groq API is unavailable"""
+        
+        # Extract customer context
+        customer_tier = metadata.get("customer_tier", "standard") if metadata else "standard"
+        sentiment = metadata.get("sentiment", "neutral") if metadata else "neutral"
+        
+        # Tier-specific greetings
+        greetings = {
+            "enterprise": "Thank you for contacting our enterprise support team.",
+            "premium": "Thank you for contacting our premium support.",
+            "standard": "Thank you for contacting our support team."
+        }
+        
+        # Sentiment-aware responses
+        empathy = {
+            "negative": "I understand your frustration, and I'm here to help resolve this issue for you.",
+            "positive": "I appreciate you reaching out, and I'm happy to assist you.",
+            "neutral": "I'm here to help you with your inquiry."
+        }
+        
+        # Category-specific responses
+        responses = {
+            "billing": {
+                "action": "I'll help you resolve this billing matter right away. Let me review your account and get this sorted out for you.",
+                "next_steps": "I'll need to access your account details to provide the most accurate information and resolution."
+            },
+            "technical": {
+                "action": "I can help you troubleshoot this technical issue. Let me guide you through some steps to identify and resolve the problem.",
+                "next_steps": "I'll work with you step-by-step to diagnose the issue and find an effective solution."
+            },
+            "general": {
+                "action": "I'm here to help answer your question and provide you with the information you need.",
+                "next_steps": "I'll make sure you get comprehensive assistance with your inquiry."
+            }
+        }
+        
+        # Build response
+        greeting = greetings.get(customer_tier, greetings["standard"])
+        empathy_msg = empathy.get(sentiment, empathy["neutral"])
+        category_response = responses.get(category, responses["general"])
+        
+        response = f"{greeting} {empathy_msg} {category_response['action']} {category_response['next_steps']}"
+        
+        return response
+    
+    @lru_cache(maxsize=500)
+    def _cached_generate(self, question: str, category: str, metadata_str: str = "") -> str:
+        """Generate response with caching (metadata converted to string for hashing)"""
+        metadata = json.loads(metadata_str) if metadata_str else None
+        
+        # Try Groq API first
+        response = self._call_groq_api(question, category, metadata)
+        
+        # Fallback if API fails or returns poor response
+        if not response or len(response) < 20:
+            return self._get_fallback_response(category, question, metadata)
+        
+        return response
     
     def generate_response(self, question: UserQuestion, classification: ClassificationResult) -> SupportResponse:
+        """Generate a support response using Groq API"""
         start_time = time.time()
         
-        # Generate AI response
-        category = classification.category.value
-        ai_message = self._cached_generate(question.text, category)
+        # Extract metadata for enhanced prompting
+        metadata = question.metadata or {}
+        metadata_str = json.dumps(metadata, sort_keys=True) if metadata else ""
         
+        # Generate response
+        category = classification.category.value
+        ai_message = self._cached_generate(question.text, category, metadata_str)
+        
+        # Calculate processing time
         processing_time = (time.time() - start_time) * 1000
+        total_time = processing_time + (classification.processing_time_ms or 0)
         
         return SupportResponse(
             message=ai_message,
             category=classification.category,
             confidence=classification.confidence,
-            processing_time_ms=processing_time + classification.processing_time_ms
+            processing_time_ms=total_time
         )
+    
+    def clear_cache(self):
+        """Clear the response cache"""
+        self._cached_generate.cache_clear()
+        print("🧹 Response cache cleared")
+    
+    def get_cache_info(self):
+        """Get cache statistics"""
+        return self._cached_generate.cache_info()
