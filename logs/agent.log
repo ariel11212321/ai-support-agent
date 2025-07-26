@@ -1,3 +1,0 @@
-[2025-07-23T21:52:40.343694] STORAGE ERROR: Failed to save conversation: [Errno 2] No such file or directory: 'C:\\Users\\Admin\\Documents\\GitHub\\ai-support-agent\\data\\conversations.tmp'
-[2025-07-23T21:52:40.347433] STORAGE ERROR: Failed to save analytics: [Errno 2] No such file or directory: 'C:\\Users\\Admin\\Documents\\GitHub\\ai-support-agent\\data\\analytics.tmp'
-[2025-07-23T21:52:40.347959] STORAGE ERROR: Failed to save cache data: [Errno 2] No such file or directory: 'C:\\Users\\Admin\\Documents\\GitHub\\ai-support-agent\\data\\cache.tmp'
