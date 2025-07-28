@@ -520,7 +520,7 @@ class SupportWorkflow:
         
         question = UserQuestion(text=question_text)
         
-        # Your existing initial_state setup...
+        
         initial_state = {
             "ticket_id": "",
             "question": question,
